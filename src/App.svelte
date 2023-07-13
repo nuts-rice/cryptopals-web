@@ -5,10 +5,6 @@
 
 <main class="container">
   <div class="row">
-    <Greet />
-  </div>
-
-  <div class="row">
     <Generate_diffie_hellman />
   </div>
 </main>

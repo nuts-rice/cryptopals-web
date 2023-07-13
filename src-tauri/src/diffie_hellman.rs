@@ -1,3 +1,4 @@
+use all_asserts::*;
 use anyhow::{Error, Result};
 
 use digest::*;
@@ -6,16 +7,18 @@ use num_bigint::RandBigInt;
 use session_types::*;
 use sha1::Sha1;
 use std::fmt::*;
-
-use tracing::debug;
-
-#[derive(Default, Debug)]
+use std::thread::*;
+use tracing::{debug, info};
+use tracing_test::traced_test;
+#[derive(Clone, Default, Debug)]
 pub struct DH {
     pub g: u32,
     pub p: BigUint,
 }
 #[derive(Default, Debug)]
 pub struct SecretSharedPair {
+    pub pub_a: BigUint,
+    pub pub_b: BigUint,
     pub a: BigUint,
     pub b: BigUint,
 }
@@ -46,6 +49,8 @@ impl DH {
         let k_session_2 = k_pub_a.modpow(&k_priv_b, &self.p);
         assert_eq!(k_session_1, k_session_2);
         let shared_pair = SecretSharedPair {
+            pub_a: k_pub_a,
+            pub_b: k_pub_b,
             a: k_session_1,
             b: k_session_2,
         };
@@ -56,44 +61,61 @@ impl DH {
 
 mod handshake {
     use super::*;
-    use clap::Parser;
 
     type server = Recv<DH, Send<Key, Eps>>;
     type client = <server as HasDual>::Dual;
 
-    #[derive(Parser, Debug)]
-    struct Args {
-        #[arg(short, long, default_value_t = 3)]
-        prime: u32,
-        #[arg(short, long, default_value_t = 1)]
-        generator: u32,
-    }
-
+    //should use this to calculate n_predictions
     pub type Key = Box<Vec<u8>>;
+
+    pub type Predictability = f64;
     fn secret_to_key(s: &[u8]) -> Key {
         Box::new(Sha1::digest(s)[0..16].to_vec())
     }
 
-    pub fn handshake(_dh: DH, channel: Chan<(), server>) {
+    pub fn handshake(_dh: &DH, channel: Chan<(), server>) {
         let (channel, dh) = channel.recv();
         let _dh = dh.diffie_hellman().unwrap();
-        let B = _dh.b;
-
-        let tx = secret_to_key(&B.to_bytes_be());
+        let B = _dh.pub_b;
+        let tx: Key = secret_to_key(&B.to_bytes_be());
         debug!("server sending: {:#?}", tx);
         let c = channel.send(tx);
         c.close()
     }
 
-    fn session() {
+    pub fn client_session(_dh: &DH, channel: Chan<(), client>) {
+        //TODO: session type and parse dh from client here
         unimplemented!()
     }
 
-    pub fn handshake_cli(_c: Chan<(), Rec<client>>) {
-        let args = Args::parse();
-        debug!("p: {}, g: {}", args.prime, args.generator);
+    pub fn mitm_handshake(_dh: &DH, channel: Chan<(), server>) {
+        let (channel, dh) = channel.recv();
+        let p = _dh.clone().p;
+        let evil_tx = Box::new(p.to_bytes_be());
+        debug!("evil server sending {:?}", evil_tx);
+        let c = channel.send(evil_tx);
+        c.close()
+    }
 
-        // let prime =
+    pub fn mitm_session(_dh: &DH, channel: Chan<(), client>) {
+        // let (server_mitm, client_mitm) = session_channel();
+        //should return p instead of pub_key
+        // let evil_server = spawn(move || mitm_handshake(_dh, server_mitm));
+        // mitm_handshake(_dh, )
+        // evil_server.join().unwrap();
+        let (channel, dh) = channel.send(_dh.clone()).recv();
+        let p = _dh.p.to_bytes_be();
+        let clueless_p = p.as_slice();
+        let clueless_tx: Key = secret_to_key(clueless_p.clone());
+        debug!("clueless client sending {:?}", clueless_tx);
+        channel.close()
+    }
+
+    fn calculate_key_collison(dh: &DH, key: Key) -> f64 {
+        let n_predictions: u32 = 0u32;
+
+        let predictability: Predictability = 0.0;
+        predictability
     }
 }
 
@@ -119,7 +141,10 @@ mod tests {
             dh
         );
         let (c1, c2) = session_channel();
-        spawn(move || handshake::handshake(dh, c1));
+        let handshake = spawn(move || handshake::handshake(&dh.clone(), c1));
+        // let cli = spawn(move || handshake::client_session(&dh.to_owned(), c2));
+        let finalized_handshake = handshake.join().unwrap();
+        //TODO: calculate predictability after evil handshake and assert
         // let (c, _n) = c2.send(Box<Vec<>>);
         // c.close();
     }
