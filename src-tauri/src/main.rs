@@ -4,7 +4,7 @@
 use cryptopals_web::diffie_hellman::*;
 use num_bigint::BigUint;
 use std::iter::repeat;
-use tracing::{info};
+use tracing::info;
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -17,7 +17,7 @@ async fn dh_mitm_attack_demo(prime: String, generator: String) -> Result<String,
     let generator: u32 = generator.parse().unwrap();
     //TODO: test and return n_predictions for key in diffie_hellman
     let n_prediction: f64 = 0.0;
-    let mut _dh = DH::new(BigUint::from(prime), generator);
+    let mut _dh = DH::new(prime, generator);
     //TODO: evil dh session for client according to cryptopals
     let msg: Vec<u8> = repeat(0u8).take(64).collect();
     info!("decrypted message is {:?}", msg);
@@ -30,7 +30,7 @@ async fn generate_dh(prime: String, generator: String) -> Result<String, ()> {
     let prime: u32 = prime.parse().unwrap();
     let generator: u32 = generator.parse().unwrap();
     let _shared_secret: BigUint = BigUint::from(0u32);
-    let mut _dh = DH::new(BigUint::from(prime), generator);
+    let mut _dh = DH::new(prime, generator);
     let shared = _dh.diffie_hellman().unwrap();
     Ok(format!(
         "diffie hellman prime: {}, diffie hellman generator: {}, shared secret for Alice is {}, shared secret for Bob is {}",

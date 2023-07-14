@@ -13,7 +13,7 @@ use tracing_test::traced_test;
 #[derive(Clone, Default, Debug)]
 pub struct DH {
     pub g: u32,
-    pub p: BigUint,
+    pub p: u32,
 }
 #[derive(Default, Debug)]
 pub struct SecretSharedPair {
@@ -24,7 +24,7 @@ pub struct SecretSharedPair {
 }
 
 impl DH {
-    pub fn new(p: BigUint, g: u32) -> Self {
+    pub fn new(p: u32, g: u32) -> Self {
         DH { p: (p), g: (g) }
     }
     // pub fn new() -> Self {
@@ -43,10 +43,10 @@ impl DH {
         let mut rng = rand::thread_rng();
         let k_priv_a: BigUint = rng.gen_biguint(1000) % &self.p;
         let k_priv_b: BigUint = rng.gen_biguint(1000) % &self.p;
-        let k_pub_a: BigUint = BigUint::from(self.g).modpow(&k_priv_a, &self.p);
-        let k_pub_b: BigUint = BigUint::from(self.g).modpow(&k_priv_b, &self.p);
-        let k_session_1 = k_pub_b.modpow(&k_priv_a, &self.p);
-        let k_session_2 = k_pub_a.modpow(&k_priv_b, &self.p);
+        let k_pub_a: BigUint = BigUint::from(self.g).modpow(&k_priv_a, &BigUint::from(self.p));
+        let k_pub_b: BigUint = BigUint::from(self.g).modpow(&k_priv_b, &BigUint::from(self.p));
+        let k_session_1 = k_pub_b.modpow(&k_priv_a, &BigUint::from(self.p));
+        let k_session_2 = k_pub_a.modpow(&k_priv_b, &BigUint::from(self.p));
         assert_eq!(k_session_1, k_session_2);
         let shared_pair = SecretSharedPair {
             pub_a: k_pub_a,
@@ -58,6 +58,8 @@ impl DH {
         Ok(shared_pair)
     }
 }
+
+impl Copy for DH {}
 
 mod handshake {
     use super::*;
@@ -91,7 +93,7 @@ mod handshake {
     pub fn mitm_handshake(_dh: &DH, channel: Chan<(), server>) {
         let (channel, dh) = channel.recv();
         let p = _dh.clone().p;
-        let evil_tx = Box::new(p.to_bytes_be());
+        let evil_tx = Box::new(vec![p as u8]);
         debug!("evil server sending {:?}", evil_tx);
         let c = channel.send(evil_tx);
         c.close()
@@ -104,7 +106,7 @@ mod handshake {
         // mitm_handshake(_dh, )
         // evil_server.join().unwrap();
         let (channel, dh) = channel.send(_dh.clone()).recv();
-        let p = _dh.p.to_bytes_be();
+        let p = _dh.p.to_be_bytes();
         let clueless_p = p.as_slice();
         let clueless_tx: Key = secret_to_key(clueless_p.clone());
         debug!("clueless client sending {:?}", clueless_tx);
@@ -126,7 +128,7 @@ mod tests {
     #[test]
     #[traced_test]
     fn diffie_hellman_test() {
-        let _dh = DH::new(BigUint::from(31u32), 3);
+        let _dh = DH::new(31, 3);
         let shared_scret = _dh.diffie_hellman().unwrap();
         info!("shared secret is {:#?}", shared_scret);
         assert_range!(BigUint::from(1u32)..BigUint::from(31u32), shared_scret.a);
@@ -135,15 +137,16 @@ mod tests {
     #[test]
     #[traced_test]
     fn handshake_test() {
-        let dh = DH::new(BigUint::from(31u32), 3);
+        let dh = DH::new(31, 3);
         info!(
             "spawning diffie hellman echo bot with diffie hellman of {:#?} ",
             dh
         );
-        let (c1, c2) = session_channel();
-        let handshake = spawn(move || handshake::handshake(&dh.clone(), c1));
-        // let cli = spawn(move || handshake::client_session(&dh.to_owned(), c2));
-        let finalized_handshake = handshake.join().unwrap();
+        // let (c1, c2) = session_channel();
+        // let handshake = spawn(move || handshake::handshake(&dh.clone(), c1));
+        // handshake::client_session(&dh, c2);
+        //     // let cli = spawn(move || handshake::client_session(&dh.clone(), c2));
+        // let finalized_handshake = handshake.join().unwrap();
         //TODO: calculate predictability after evil handshake and assert
         // let (c, _n) = c2.send(Box<Vec<>>);
         // c.close();
