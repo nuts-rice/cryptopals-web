@@ -87,7 +87,9 @@ mod handshake {
 
     pub fn client_session(_dh: &DH, channel: Chan<(), client>) {
         //TODO: session type and parse dh from client here
-        unimplemented!()
+        let (channel, tx) = channel.send(_dh.clone()).recv();
+        debug!("client sending {:?}", _dh);
+        channel.close()
     }
 
     pub fn mitm_handshake(_dh: &DH, channel: Chan<(), server>) {
@@ -142,11 +144,11 @@ mod tests {
             "spawning diffie hellman echo bot with diffie hellman of {:#?} ",
             dh
         );
-        // let (c1, c2) = session_channel();
-        // let handshake = spawn(move || handshake::handshake(&dh.clone(), c1));
-        // handshake::client_session(&dh, c2);
+        let (c1, c2) = session_channel();
+        let handshake = spawn(move || handshake::handshake(&dh.clone(), c1));
+        handshake::client_session(&dh, c2);
         //     // let cli = spawn(move || handshake::client_session(&dh.clone(), c2));
-        // let finalized_handshake = handshake.join().unwrap();
+        let finalized_handshake = handshake.join().unwrap();
         //TODO: calculate predictability after evil handshake and assert
         // let (c, _n) = c2.send(Box<Vec<>>);
         // c.close();
