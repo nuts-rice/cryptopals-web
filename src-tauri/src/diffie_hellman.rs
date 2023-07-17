@@ -1,11 +1,12 @@
 use all_asserts::*;
 use anyhow::{Error, Result};
 
-use digest::*;
 use num_bigint::BigUint;
 use num_bigint::RandBigInt;
+use rand::Rng;
+use ring::aead::{Aad, BoundKey, LessSafeKey, Nonce, UnboundKey, AES_128_GCM};
 use session_types::*;
-use sha1::Sha1;
+use sha1::{Digest, Sha1};
 use std::fmt::*;
 use std::thread::*;
 use tracing::{debug, info};
@@ -59,8 +60,9 @@ impl DH {
     }
 }
 
-impl Copy for DH {}
-
+impl Copy for DH {
+    // add code here
+}
 mod handshake {
     use super::*;
 
@@ -69,16 +71,38 @@ mod handshake {
 
     //should use this to calculate n_predictions
     pub type Key = Box<Vec<u8>>;
+    pub type AESKey = [u8; 16];
 
     pub type Predictability = f64;
     fn secret_to_key(s: &[u8]) -> Key {
-        Box::new(Sha1::digest(s)[0..16].to_vec())
+        let mut sha1 = Sha1::new();
+        sha1.update(s);
+        let hash = sha1.finalize().to_vec();
+        let _key: AESKey = hash.try_into().unwrap();
+        let unbound = UnboundKey::new(&AES_128_GCM, &_key).unwrap();
+        let nonce = {
+            let mut rng = rand::thread_rng();
+            let mut buf = [0u8; 12];
+            rng.fill(&mut buf);
+            Nonce::assume_unique_for_key(buf)
+        };
+        let less_safe = LessSafeKey::new(unbound);
+        let mut in_out = s.to_vec();
+        let s_len = in_out.len();
+        in_out.resize(s_len + less_safe.algorithm().tag_len(), 0u8);
+        //encrypts
+        let _key = less_safe
+            .seal_in_place_separate_tag(nonce, Aad::empty(), &mut in_out)
+            .unwrap();
+        let key: Key = Box::new(_key.as_ref().to_vec());
+        key
     }
 
     pub fn handshake(_dh: &DH, channel: Chan<(), server>) {
         let (channel, dh) = channel.recv();
         let _dh = dh.diffie_hellman().unwrap();
         let B = _dh.pub_b;
+        //TODO: changes to secret to key is propgating errors
         let tx: Key = secret_to_key(&B.to_bytes_be());
         debug!("server sending: {:#?}", tx);
         let c = channel.send(tx);
@@ -115,9 +139,33 @@ mod handshake {
         channel.close()
     }
 
-    fn calculate_key_collison(dh: &DH, key: Key) -> f64 {
-        let n_predictions: u32 = 0u32;
+    //oracle check, generate pub_a, priv_a, pub_b, priv_b TODO: extract params from shared?
+    fn is_valid_key(key: &Key) -> bool {
+        let key = secret_to_key(key);
+        let p = key.as_slice()[0] as u32;
+        let g = key.as_slice()[1] as u32;
+        let _dh = DH::new(p, g).diffie_hellman();
+        match _dh {
+            Ok(_) => true,
+            Err(_) => false,
+        }
+        // let mut sha1 = Sha1::new();
+        // sha1.update(key.as_slice());
+        // let hash = sha1.finalize();
+        // let unbound = UnboundKey::new(&AES_128_GCM, &hash).unwrap();
+        // match unbound {
+        //     Ok(_)  => true,
+        //     Err(_) => false,
+        // }
+        // let  params : SecretSharedPair =
+    }
 
+    //params: dh - diffie hellman
+    fn calculate_key_collison(dh: &DH) -> f64 {
+        let n_predictions: u32 = 0u32;
+        let shared_pair = dh.diffie_hellman().unwrap();
+
+        // let key_prediction: Key   =
         let predictability: Predictability = 0.0;
         predictability
     }
