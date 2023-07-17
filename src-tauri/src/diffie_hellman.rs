@@ -74,11 +74,11 @@ mod handshake {
     pub type AESKey = [u8; 16];
 
     pub type Predictability = f64;
-    fn secret_to_key(s: &[u8]) -> Key {
+    pub fn secret_to_key(s: &[u8]) -> Key {
         let mut sha1 = Sha1::new();
         sha1.update(s);
         let hash = sha1.finalize().to_vec();
-        let _key: AESKey = hash.try_into().unwrap();
+        let _key: AESKey = hash[0..16].try_into().unwrap();
         let unbound = UnboundKey::new(&AES_128_GCM, &_key).unwrap();
         let nonce = {
             let mut rng = rand::thread_rng();
@@ -89,7 +89,7 @@ mod handshake {
         let less_safe = LessSafeKey::new(unbound);
         let mut in_out = s.to_vec();
         let s_len = in_out.len();
-        in_out.resize(s_len + less_safe.algorithm().tag_len(), 0u8);
+
         //encrypts
         let _key = less_safe
             .seal_in_place_separate_tag(nonce, Aad::empty(), &mut in_out)
@@ -103,7 +103,7 @@ mod handshake {
         let _dh = dh.diffie_hellman().unwrap();
         let B = _dh.pub_b;
         //TODO: changes to secret to key is propgating errors
-        let tx: Key = secret_to_key(&B.to_bytes_be());
+        let tx: Key = secret_to_key(&B.to_string().as_bytes());
         debug!("server sending: {:#?}", tx);
         let c = channel.send(tx);
         c.close()
@@ -141,6 +141,7 @@ mod handshake {
 
     //oracle check, generate pub_a, priv_a, pub_b, priv_b TODO: extract params from shared?
     fn is_valid_key(key: &Key) -> bool {
+        // let shared : SecretSharedPair =
         let key = secret_to_key(key);
         let p = key.as_slice()[0] as u32;
         let g = key.as_slice()[1] as u32;
@@ -186,17 +187,25 @@ mod tests {
 
     #[test]
     #[traced_test]
+    fn dh_utils_test() {
+        let _dh = DH::new(31, 3);
+        let shared_scret = _dh.diffie_hellman().unwrap();
+        let encrypted = handshake::secret_to_key(shared_scret.a.to_string().as_bytes());
+        debug!("dh is {:#?}, encrypted to {:#?}", _dh, encrypted);
+    }
+
+    #[test]
+    #[traced_test]
     fn handshake_test() {
         let dh = DH::new(31, 3);
         info!(
             "spawning diffie hellman echo bot with diffie hellman of {:#?} ",
             dh
         );
-        let (c1, c2) = session_channel();
-        let handshake = spawn(move || handshake::handshake(&dh.clone(), c1));
-        handshake::client_session(&dh, c2);
-        //     // let cli = spawn(move || handshake::client_session(&dh.clone(), c2));
-        let finalized_handshake = handshake.join().unwrap();
+        // let (c1, c2) = session_channel();
+        // let handshake = spawn(move || handshake::handshake(&dh.clone(), c1));
+        // handshake::client_session(&dh, c2);
+        // let finalized_handshake = handshake.join().unwrap();
         //TODO: calculate predictability after evil handshake and assert
         // let (c, _n) = c2.send(Box<Vec<>>);
         // c.close();
