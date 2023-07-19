@@ -12,6 +12,11 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
+async fn srp_repl_demo() -> Result<String, ()> {
+    unimplemented!()
+}
+
+#[tauri::command]
 async fn dh_mitm_attack_demo(prime: String, generator: String) -> Result<String, ()> {
     let prime: u32 = prime.parse().unwrap();
     let generator: u32 = generator.parse().unwrap();

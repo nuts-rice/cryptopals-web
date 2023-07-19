@@ -20,6 +20,8 @@ pub struct DH {
 pub struct SecretSharedPair {
     pub pub_a: BigUint,
     pub pub_b: BigUint,
+    priv_a: BigUint,
+    priv_b: BigUint,
     pub a: BigUint,
     pub b: BigUint,
 }
@@ -52,6 +54,8 @@ impl DH {
         let shared_pair = SecretSharedPair {
             pub_a: k_pub_a,
             pub_b: k_pub_b,
+            priv_a: k_priv_a,
+            priv_b: k_priv_b,
             a: k_session_1,
             b: k_session_2,
         };
