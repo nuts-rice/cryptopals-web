@@ -28,14 +28,17 @@ mod srp_handshake {
     pub fn gen_hash(secret: Secret) -> Result<String, ()> {
         let mut rng = rand::thread_rng();
         let salt: u64 = rng.gen();
+        let hex_encode_salt = HEXUPPER.encode(&salt.to_be_bytes()).into_bytes();
+        let hex_encode_pass = HEXUPPER.encode(&secret.password.as_bytes()).into_bytes();
         let mut ctx = ring::digest::Context::new(&digest::SHA256);
-        ctx.update(salt.to_be_bytes().as_slice());
-        ctx.update(secret.password.as_bytes());
-        //parse into hex...
+        ctx.update(&hex_encode_salt);
+        ctx.update(&hex_encode_pass);
+        //parsec ito hex...
         let raw_hash = ctx.finish();
-        let hex_encode = HEXUPPER.encode(raw_hash.as_ref());
-        debug!("hex encoded sha256 digest is {:#?}", hex_encode);
-        // let v: u64 = secret.g.wrapping_pow(hex_encode)
+        // let hash = vec![raw_hash.as_ref()];
+        // let hex_encode : u64 = u64::from_be_bytes(hash);
+        // debug!("hex encoded sha256 digest is {:#?}", hex_encode);
+        // let v: u64 = (secret.g ^ hex_encode) % secret.n;
         Ok(String::from("dummy"))
     }
     //send email, A = g**a % N

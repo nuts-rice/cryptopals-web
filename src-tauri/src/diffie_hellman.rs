@@ -130,11 +130,6 @@ mod handshake {
     }
 
     pub fn mitm_session(_dh: &DH, channel: Chan<(), client>) {
-        // let (server_mitm, client_mitm) = session_channel();
-        //should return p instead of pub_key
-        // let evil_server = spawn(move || mitm_handshake(_dh, server_mitm));
-        // mitm_handshake(_dh, )
-        // evil_server.join().unwrap();
         let (channel, dh) = channel.send(_dh.clone()).recv();
         let p = _dh.p.to_be_bytes();
         let clueless_p = p.as_slice();
