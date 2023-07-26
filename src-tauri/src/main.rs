@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use cryptopals_web::diffie_hellman::*;
+use cryptopals_web::srp::srp_handshake::*;
 use num_bigint::BigUint;
 use std::iter::repeat;
 use tracing::info;
@@ -12,8 +13,23 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-async fn srp_repl_demo() -> Result<String, ()> {
-    unimplemented!()
+async fn srp_repl_demo(prime: String, user_email: String, user_pass: String) -> Result<String, ()> {
+    let prime: u64 = prime.parse().unwrap();
+    let secret = Secret {
+        n: prime,
+        g: 2u64,
+        k: 3u64,
+        email: user_email,
+        password: user_pass,
+    };
+    let hash = gen_hash(&secret).unwrap();
+    let mut pub_k: PubKeys = PubKeys {
+        a: vec![0u8; 16],
+        b: vec![0u8; 16],
+    };
+    server_session(hash, &mut pub_k);
+    let client_ses = client_session(&secret, &mut pub_k);
+    Ok(format!("User proof is {:?}", client_ses.unwrap()))
 }
 
 #[tauri::command]
