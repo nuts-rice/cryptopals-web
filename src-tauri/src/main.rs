@@ -61,7 +61,11 @@ async fn generate_dh(prime: String, generator: String) -> Result<String, ()> {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![generate_dh, dh_mitm_attack_demo])
+        .invoke_handler(tauri::generate_handler![
+            generate_dh,
+            dh_mitm_attack_demo,
+            srp_repl_demo
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
