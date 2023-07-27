@@ -24,13 +24,27 @@ pub mod srp_handshake {
         pub password: String,
     }
 
+    pub struct Server_Secret {
+        pub priv_b: [u8; 2],
+        pub server_proof: Vec<u8>,
+    }
+
     pub struct PubKeys {
         pub a: Vec<u8>,
         pub b: Vec<u8>,
     }
-    //TODO: Placeholder type
-    pub struct Msg {
-        message: String,
+    //screw it juast bundle all these and return them in session
+    pub struct SrvMsg {
+        pub verifier: Vec<u8>,
+        pub srv_key : Vec<u8>,
+        pub srv_proof: Vec<u8>,
+    }
+
+    pub struct CliMsg {
+        pub verifier: Vec<u8>,
+        pub cli_key : Vec<u8>,
+        pub cli_proof: Vec<u7>,
+
     }
     //N = NIST prime, g = 2, k = 3, email, password
     pub fn negotiate_secret() {}
@@ -75,10 +89,10 @@ pub mod srp_handshake {
         pub_keys.a = client.compute_public_ephemeral(&a);
         let client_proof = client_v.proof();
         info!("client proof is {:#?}", client_proof);
-        Ok(client_proof.to_vec())
+        Ok(client_proof.to_vec())            
     }
     //send salt B = kv + g **b % N
-    pub fn server_session(v: Vec<u8>, pub_keys: &mut PubKeys) -> Result<Vec<u8>, ()> {
+    pub fn server_session(v: Vec<u8>, pub_keys: &mut PubKeys, server_secret: &mut Server_Secret) -> Result<Vec<u8>, ()> {
         let mut rng = rand::rngs::OsRng;
         let server = SrpServer::<Sha256>::new(&G_2048);
         let mut b = [0u8, 64];
@@ -87,6 +101,7 @@ pub mod srp_handshake {
         rng.fill_bytes(&mut salt);
         let (salt, b_pub) = (&salt, server.compute_public_ephemeral(&b, &v));
         pub_keys.b = b_pub.clone();
+        server_secret.priv_b = b; 
         Ok(b_pub)
     }
     //uH = sha256(A|B) , u = interger of uH
@@ -105,12 +120,15 @@ pub mod srp_handshake {
         server_v.verify_client(&proof.as_slice()).unwrap();
         let server_proof = server_v.proof();
         let server_key = server_v.key();
+        info!("Server proof : {:#?}", server_proof);
+        info!("Server key : {:#?}", server_key);
     }
 
-    pub fn client_verify(pub_keys: PubKeys, secret: &Secret, proof: Vec<u8>, priv_a: &[u8]) {
-        let client = SrpClient::<Sha256>::new(&G_2048);
-        unimplemented!()
-    }
+    // pub fn client_verify(pub_keys: PubKeys, secret: &Secret, proof: Vec<u8>, priv_a: &[u8], verifier :  {
+    //     let client = SrpClient::<Sha256>::new(&G_2048);
+    //     info!("server verifying via client");
+
+    // }
 }
 #[cfg(test)]
 mod tests {
@@ -126,12 +144,18 @@ mod tests {
             email: String::from("jowbog@gmail.com"),
             password: String::from("sillyorange33342352"),
         };
+        let mut srv_secret = srp_handshake::Server_Secret {
+            priv_b : [0u8; 2],
+            server_proof: vec![0u8; 16],
+        };
         let hash = srp_handshake::gen_hash(&Scrt).unwrap();
         let mut pub_k: srp_handshake::PubKeys = srp_handshake::PubKeys {
             a: vec![0u8; 16],
             b: vec![0u8; 16],
         };
-        let pub_b = srp_handshake::server_session(hash, &mut pub_k);
+        
+        let pub_b = srp_handshake::server_session(hash.clone(), &mut pub_k, &mut srv_secret);
         let client_session = srp_handshake::client_session(&Scrt, &mut pub_k);
+        let server_v = srp_handshake::server_verify(pub_k, &srv_secret.priv_b, hash, &Scrt, client_session.unwrap());
     }
 }
