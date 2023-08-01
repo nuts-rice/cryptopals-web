@@ -1,13 +1,18 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use crate::FunkyFiniteFields::{assign_on_secret, assign_on_subtle};
 use cryptopals_web::diffie_hellman::*;
+use cryptopals_web::ff::*;
 use cryptopals_web::srp::srp_handshake::*;
 pub(crate) use firestorm::profile_fn;
 
 use num_bigint::BigUint;
 use std::iter::repeat;
+use std::time::*;
 use tracing::info;
+
+pub const TARGET_VAL: u64 = 98765432198765;
 
 enum EvilBehavior {
     DHTamper,
@@ -38,60 +43,21 @@ async fn srp_repl_demo(prime: String, user_email: String, user_pass: String) -> 
     let client_ses = client_session(&secret, &mut pub_k);
     Ok(format!("User proof is {:?}", client_ses.unwrap()))
 }
-
-mod FunkyFiniteFields {
-    use super::*;
-    use subtle::ConstantTimeEq;
-    pub const BRANCH_SECRET: u64 = 1234567890123456;
-    struct FieldElement {
-        limbs: usize,
-        order: BigUint,
-        modulus: BigUint,
-        a2: usize,
-        a4: usize,
-        a6: usize,
+#[tauri::command]
+async fn ct_timing_demo() -> Result<String, ()> {
+    let now = Instant::now();
+    if cfg!(feature = "mal") {
+        assign_on_secret(TARGET_VAL, true);
+    } else {
+        let mut _cmp = subtle::Choice::from(1u8);
+        assign_on_subtle(TARGET_VAL, &mut _cmp);
     }
-
-    //conditional assignment
-    //refer to
-    //https://research.nccgroup.com/2022/06/15/public-report-threshold-ecdsa-cryptography-review/ and
-    //https://github.com/dfinity/ic/commit/34703fad074f5bb53142b2cf5f569c5c66c6c3b1#diff-1b547352196f5d4ae84d7793a304d5d780d757dfd0959465c4e5fde996608a54
-    #[tauri::command]
-    async fn ct_timing_demo() -> Result<String, ()> {
-        if cfg!(feature = "mal") {
-            todo!()
-            // assign_on_secret(val, naughty_cmp)
-        } else {
-            let _cmp = subtle::Choice::from(1u8);
-            todo!()
-            // assign_on_subtle(val, cmp)
-        }
-
-        Ok(format!(""))
-    }
-
-    //happy choice for conditionally assigning using subtle::choice and subtle::constanttimeeq
-    pub fn assign_on_subtle(target: u64, _assign: subtle::Choice) {
-        let mut cmp = subtle::Choice::from(1u8);
-        for i in 0..=999 {
-            cmp &= BRANCH_SECRET.to_be_bytes()[i].ct_eq(&target.to_be_bytes()[i])
-        }
-        unimplemented!()
-    }
-
-    //evil naughty choice for bad boys!
-    pub fn assign_on_secret(target: u64, _assign: bool) {
-        let mut cmp = 0;
-        for i in 0..=999 {
-            cmp |= BRANCH_SECRET.to_be_bytes()[i] ^ target.to_be_bytes()[i]
-        }
-    }
-
-    // pub fn random_fe ()  -> FieldElement {
-    //     let mut rng = rand::thread_rng();
-    //     let mut buf = vec![0u8; ]
-    // }
+    let elapsed = now.elapsed();
+    Ok(format!("{:?}", elapsed.as_millis()))
 }
+
+//happy choice for conditionally assigning using subtle::choice and subtle::constanttimeeq
+
 //TODO: Implement Evil choice for this
 #[tauri::command]
 async fn dh_mitm_attack_demo(prime: String, generator: String) -> Result<String, ()> {
@@ -135,7 +101,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             generate_dh,
             dh_mitm_attack_demo,
-            srp_repl_demo
+            srp_repl_demo,
+            ct_timing_demo,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
