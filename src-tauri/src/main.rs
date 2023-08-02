@@ -1,7 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use crate::FunkyFiniteFields::{assign_on_secret, assign_on_subtle};
+use crate::FunkyFiniteFields::{eq_on_secret, eq_on_subtle};
 use cryptopals_web::diffie_hellman::*;
 use cryptopals_web::ff::*;
 use cryptopals_web::srp::srp_handshake::*;
@@ -44,13 +44,12 @@ async fn srp_repl_demo(prime: String, user_email: String, user_pass: String) -> 
     Ok(format!("User proof is {:?}", client_ses.unwrap()))
 }
 #[tauri::command]
-async fn ct_timing_demo() -> Result<String, ()> {
+async fn ct_timing_demo(selected: bool) -> Result<String, ()> {
     let now = Instant::now();
     if cfg!(feature = "mal") {
-        assign_on_secret(TARGET_VAL, true);
+        eq_on_secret(TARGET_VAL);
     } else {
-        let mut _cmp = subtle::Choice::from(1u8);
-        assign_on_subtle(TARGET_VAL, &mut _cmp);
+        eq_on_subtle(TARGET_VAL, selected);
     }
     let elapsed = now.elapsed();
     Ok(format!("{:?}", elapsed.as_millis()))

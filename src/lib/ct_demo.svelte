@@ -7,16 +7,16 @@
     { id: 2, text: "false" , value: false },
   ];
   let selected : boolean = true;
-  let benches = 0;
+  let benches = "0";
 
   async function Ct_demo() {
-    benches = await invoke("ct_timing_demo");
+    benches = await invoke("ct_timing_demo", {selected});
   }
 </script>
 
 <div>
   <form class="row" on:submit|preventDefault={Ct_demo}>
-    <select bind:value={selected} on:change={() => (benches = 0)}>
+    <select bind:value={selected} on:change={() => (benches = "0")}>
       {#each targetBools as bool}
         <option value={bool.value}>
           {bool.text}
