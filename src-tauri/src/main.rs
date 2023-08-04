@@ -47,7 +47,7 @@ async fn srp_repl_demo(prime: String, user_email: String, user_pass: String) -> 
 async fn ct_timing_demo(selected: bool) -> Result<String, ()> {
     let now = Instant::now();
     if cfg!(feature = "mal") {
-        eq_on_secret(TARGET_VAL);
+        eq_on_secret(TARGET_VAL, selected);
     } else {
         eq_on_subtle(TARGET_VAL, selected);
     }
