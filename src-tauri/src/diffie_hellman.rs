@@ -4,7 +4,7 @@ use anyhow::{Error, Result};
 use num_bigint::BigUint;
 use num_bigint::RandBigInt;
 use rand::Rng;
-use ring::aead::{Aad, BoundKey, LessSafeKey, Nonce, UnboundKey, AES_128_GCM};
+use ring::aead::{Aad, BoundKey, LessSafeKey, Nonce, Tag, UnboundKey, AES_128_GCM};
 use session_types::*;
 use sha1::{Digest, Sha1};
 use std::fmt::*;
@@ -70,19 +70,22 @@ impl Copy for DH {
 mod handshake {
     use super::*;
 
-    type server = Recv<DH, Send<Key, Eps>>;
+    type server = Recv<DH, Send<Key, AES_srvr_session>>;
     type client = <server as HasDual>::Dual;
-
+    type AES_srvr_session = Recv<AESKey, Send<AESKey, Eps>>;
+    type AES_client_session = <AES_srvr_session as HasDual>::Dual;
     //should use this to calculate n_predictions
-    pub type Key = Box<Vec<u8>>;
-    pub type AESKey = [u8; 16];
+    pub type Key = Box<Vec<BigUint>>;
+    pub type AESKey = Box<Tag>;
 
     pub type Predictability = f64;
-    pub fn secret_to_key(s: &[u8]) -> Key {
+    pub fn secret_to_key(s: &[u8]) -> AESKey {
         let mut sha1 = Sha1::new();
         sha1.update(s);
         let hash = sha1.finalize().to_vec();
-        let _key: AESKey = hash[0..16].try_into().unwrap();
+        let _key: [u8; 16] = hash[0..16]
+            .try_into()
+            .expect("Hash length is less than 16 bytes");
         let unbound = UnboundKey::new(&AES_128_GCM, &_key).unwrap();
         let nonce = {
             let mut rng = rand::thread_rng();
@@ -98,26 +101,32 @@ mod handshake {
         let _key = less_safe
             .seal_in_place_separate_tag(nonce, Aad::empty(), &mut in_out)
             .unwrap();
-        let key: Key = Box::new(_key.as_ref().to_vec());
-        key
+        Box::new(_key)
     }
 
-    pub fn handshake(_dh: &DH, channel: Chan<(), server>) {
+    pub fn srvr_handshake(_dh: &DH, client_msg: &str, channel: Chan<(), server>) {
         let (channel, dh) = channel.recv();
         let _dh = dh.diffie_hellman().unwrap();
         let B = _dh.pub_b;
         //TODO: changes to secret to key is propgating errors
-        let tx: Key = secret_to_key(&B.to_string().as_bytes());
+        let tx: Key = Box::new(vec![B]);
         debug!("server sending: {:#?}", tx);
-        let c = channel.send(tx);
+        let mut c = channel.send(tx);
+        let (aes_channel, msg) = c.recv();
+        let aes_tx = secret_to_key(client_msg.as_bytes());
+        let c = aes_channel.send(aes_tx);
         c.close()
     }
 
-    pub fn client_session(_dh: &DH, channel: Chan<(), client>) {
+    pub fn client_session(_dh: &DH, msg: &str, channel: Chan<(), client>) {
         //TODO: session type and parse dh from client here
         let (channel, tx) = channel.send(_dh.clone()).recv();
         debug!("client sending {:?}", _dh);
-        channel.close()
+        let mut aes_msg = secret_to_key(&msg.as_bytes());
+        let mut c = channel.send(aes_msg);
+        // let (aes_channel, msg) = c.recv();
+        // let (channel, aes) = channel.recv();
+        // channel.close()
     }
 
     pub fn mitm_handshake(_dh: &DH, channel: Chan<(), server>) {
@@ -125,30 +134,36 @@ mod handshake {
         let p = _dh.clone().p;
         let evil_tx = Box::new(vec![p as u8]);
         debug!("evil server sending {:?}", evil_tx);
-        let c = channel.send(evil_tx);
-        c.close()
+        todo!();
+        // let c = channel.send(evil_tx);
+        // c.close
     }
 
-    pub fn mitm_session(_dh: &DH, channel: Chan<(), client>) {
+    pub fn mitm_session(_dh: &DH, msg: &str, channel: Chan<(), client>) {
         let (channel, dh) = channel.send(_dh.clone()).recv();
         let p = _dh.p.to_be_bytes();
         let clueless_p = p.as_slice();
-        let clueless_tx: Key = secret_to_key(clueless_p.clone());
-        debug!("clueless client sending {:?}", clueless_tx);
-        channel.close()
+        // let clueless_tx  = channel.send(clueless_p.clone());
+        // debug!("clueless client sending {:?}", clueless_tx);
+
+        let mut clueless_msg = secret_to_key(&msg.as_bytes());
+        let c = channel.send(clueless_msg);
+        // let (channel, aes) = channel.recv();
+        // channel.close()
     }
 
     //oracle check, generate pub_a, priv_a, pub_b, priv_b TODO: extract params from shared?
-    fn is_valid_key(key: &Key) -> bool {
+    fn is_valid_key(key: &[u8]) -> bool {
         // let shared : SecretSharedPair =
-        let key = secret_to_key(key);
-        let p = key.as_slice()[0] as u32;
-        let g = key.as_slice()[1] as u32;
-        let _dh = DH::new(p, g).diffie_hellman();
-        match _dh {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        todo!()
+        // let key : [u32; 4] = secret_to_key(key).try_into().unwrap();
+        // let p = key.as_slice()[0] as u32;
+        // let g = key.as_slice()[1] as u32;
+        // let _dh = DH::new(p, g).diffie_hellman();
+        // match _dh {
+        //     Ok(_) => true,
+        //     Err(_) => false,
+        // }
         // let mut sha1 = Sha1::new();
         // sha1.update(key.as_slice());
         // let hash = sha1.finalize();
@@ -190,7 +205,7 @@ mod tests {
         let _dh = DH::new(31, 3);
         let shared_scret = _dh.diffie_hellman().unwrap();
         let encrypted = handshake::secret_to_key(shared_scret.a.to_string().as_bytes());
-        debug!("dh is {:#?}, encrypted to {:#?}", _dh, encrypted);
+        // debug!("dh is {:#?}, encrypted to {:#?}", _dh, encrypted);
     }
 
     #[test]
@@ -201,7 +216,9 @@ mod tests {
             "spawning diffie hellman echo bot with diffie hellman of {:#?} ",
             dh
         );
-        // let (c1, c2) = session_channel();
+        let (c1, c2) = session_channel();
+        let handshake = spawn(move || handshake::srvr_handshake(&dh.clone(), "client msg", c1));
+        handshake::client_session(&dh, "dummy msg", c2);
         // let handshake = spawn(move || handshake::handshake(&dh.clone(), c1));
         // handshake::client_session(&dh, c2);
         // let finalized_handshake = handshake.join().unwrap();
