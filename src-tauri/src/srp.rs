@@ -138,6 +138,45 @@ pub mod srp_handshake {
 
     // }
 }
+
+mod srp_network {
+    use super::*;
+    use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
+    use std::sync::mpsc::{channel, Receiver, Sender};
+    use std::thread;
+
+    use anyhow::{anyhow, Error};
+    use srp::client::{SrpClient, SrpClientVerifier};
+    use srp::server::{SrpServer, SrpServerVerifier};
+    pub fn server_handshake(
+        port: u16,
+    ) -> Result<(Sender<()>, thread::JoinHandle<Result<String, Error>>), Error> {
+        //TODO: parse port
+        let listener = TcpListener::bind("127.0.0.1").unwrap();
+        let srvr = SrpServer::<Sha256>::new(&G_2048);
+
+        let (tx, rx): (Sender<()>, Receiver<()>) = channel();
+        let handl = thread::spawn(move || loop {
+            match listener.accept() {
+                Ok((mut stream, _)) => {
+                    if rx.try_recv().is_ok() {
+                        return Ok("Dummy string".to_string());
+                    }
+                    srvr_session();
+                }
+
+                Err(_) => {
+                    return Err(anyhow!("Whoops, an error"))?;
+                }
+            }
+        });
+        Ok((tx, handl))
+    }
+
+    pub fn srvr_session() {
+        unimplemented!()
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
