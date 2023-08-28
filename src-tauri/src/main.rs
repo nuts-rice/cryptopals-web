@@ -21,7 +21,6 @@ enum EvilBehavior {
 
 #[tauri::command]
 async fn srp_repl_demo(prime: String, user_email: String, user_pass: String) -> Result<String, ()> {
-    profile_fn!(srp_repl_demo);
     let prime: u64 = prime.parse().unwrap();
     let secret = Secret {
         n: prime,

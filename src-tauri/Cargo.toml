@@ -29,12 +29,20 @@ all_asserts = "2.3.1"
 ring = "0.16.20"
 openssl = "0.10.55"
 data-encoding = "2.4.0"
-crypto = "0.5.1"
 srp = "0.6.0"
 sha2 = "0.10.7"
 firestorm = { version = "0.5.1", features = ["enable_system_time"] }
 subtle = "2.5.0"
 criterion = "0.5.1"
+pprof = { version = "0.12.1", features = ["flamegraph", "criterion"] }
+aes = "0.8.3"
+xor = "1.4.5"
+base64 = "0.21.3"
+rustc-serialize = "0.3.24"
+rust-crypto = "0.2.36"
+
+[profile.bench]
+debug = true
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

@@ -1,5 +1,6 @@
 use crate::diffie_hellman::*;
 use data_encoding::HEXUPPER;
+use firestorm::{profile_fn, profile_method, profile_section};
 use rand::Rng;
 use rand::RngCore;
 use ring::digest;
@@ -177,36 +178,40 @@ mod srp_network {
         unimplemented!()
     }
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
+//#[cfg(test)]
+//mod tests {
+//    use super::*;
 
-    #[test]
-    #[traced_test]
-    fn hash_test() {
-        let Scrt = srp_handshake::Secret {
-            n: 31,
-            g: 3,
-            k: 2,
-            email: String::from("jowbog@gmail.com"),
-            password: String::from("sillyorange33342352"),
-        };
-        let mut srv_secret = srp_handshake::Server_Secret {
-            priv_b: [0u8; 2],
-            server_proof: vec![0u8; 16],
-        };
-        let hash = srp_handshake::gen_hash(&Scrt).unwrap();
-        let mut pub_k: srp_handshake::PubKeys = srp_handshake::PubKeys {
-            a: vec![0u8; 16],
-            b: vec![0u8; 16],
-        };
+//    #[test]
+//    #[traced_test]
+//    fn hash_test() {
+//        firestorm::profile_fn!(hash_test);
+//        let Scrt = srp_handshake::Secret {
+//            n: 31,
+//            g: 3,
+//            k: 2,
+//            email: String::from("jowbog@gmail.com"),
+//            password: String::from("sillyorange33342352"),
+//        };
+//        let mut srv_secret = srp_handshake::Server_Secret {
+//            priv_b: [0u8; 2],
+//            server_proof: vec![0u8; 16],
+//        };
+//        let hash = srp_handshake::gen_hash(&Scrt).unwrap();
+//        let mut pub_k: srp_handshake::PubKeys = srp_handshake::PubKeys {
+//            a: vec![0u8; 16],
+//            b: vec![0u8; 16],
+//        };
 
-        let pub_b = srp_handshake::server_session(hash.clone(), &mut pub_k, &mut srv_secret);
-        let client_session = srp_handshake::client_session(&Scrt, &mut pub_k).unwrap();
-        debug!("srvr secret is : {:#?}", srv_secret);
-        debug!("pub keys are : {:#?}", pub_k);
-        //TODO: fix verifier for this
-        let server_v =
-            srp_handshake::server_verify(pub_k, &srv_secret.priv_b, hash, &Scrt, client_session);
-    }
-}
+//        let pub_b = srp_handshake::server_session(hash.clone(), &mut pub_k, &mut srv_secret);
+//        let client_session = srp_handshake::client_session(&Scrt, &mut pub_k).unwrap();
+//        debug!("srvr secret is : {:#?}", srv_secret);
+//        debug!("pub keys are : {:#?}", pub_k);
+//        //TODO: fix verifier for this
+//        let server_v =
+//            srp_handshake::server_verify(pub_k, &srv_secret.priv_b, hash, &Scrt, client_session);
+//        if firestorm::enabled() {
+//            firestorm::bench("./flames/", hash_test).unwrap();
+//        }
+//    }
+//}

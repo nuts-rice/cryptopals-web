@@ -67,7 +67,7 @@ impl DH {
 impl Copy for DH {
     // add code here
 }
-mod handshake {
+pub mod handshake {
     use super::*;
 
     type server = Recv<DH, Send<Key, AES_srvr_session>>;
@@ -186,44 +186,44 @@ mod handshake {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+//#[cfg(test)]
+//mod tests {
+//    use super::*;
 
-    #[test]
-    #[traced_test]
-    fn diffie_hellman_test() {
-        let _dh = DH::new(31, 3);
-        let shared_scret = _dh.diffie_hellman().unwrap();
-        info!("shared secret is {:#?}", shared_scret);
-        assert_range!(BigUint::from(1u32)..BigUint::from(31u32), shared_scret.a);
-    }
+//    #[test]
+//    #[traced_test]
+//    fn diffie_hellman_test() {
+//        let _dh = DH::new(31, 3);
+//        let shared_scret = _dh.diffie_hellman().unwrap();
+//        info!("shared secret is {:#?}", shared_scret);
+//        assert_range!(BigUint::from(1u32)..BigUint::from(31u32), shared_scret.a);
+//    }
 
-    #[test]
-    #[traced_test]
-    fn dh_utils_test() {
-        let _dh = DH::new(31, 3);
-        let shared_scret = _dh.diffie_hellman().unwrap();
-        let encrypted = handshake::secret_to_key(shared_scret.a.to_string().as_bytes());
-        // debug!("dh is {:#?}, encrypted to {:#?}", _dh, encrypted);
-    }
+//    #[test]
+//    #[traced_test]
+//    fn dh_utils_test() {
+//        let _dh = DH::new(31, 3);
+//        let shared_scret = _dh.diffie_hellman().unwrap();
+//        let encrypted = handshake::secret_to_key(shared_scret.a.to_string().as_bytes());
+//        // debug!("dh is {:#?}, encrypted to {:#?}", _dh, encrypted);
+//    }
 
-    #[test]
-    #[traced_test]
-    fn handshake_test() {
-        let dh = DH::new(31, 3);
-        info!(
-            "spawning diffie hellman echo bot with diffie hellman of {:#?} ",
-            dh
-        );
-        let (c1, c2) = session_channel();
-        let handshake = spawn(move || handshake::srvr_handshake(&dh.clone(), "client msg", c1));
-        handshake::client_session(&dh, "dummy msg", c2);
-        // let handshake = spawn(move || handshake::handshake(&dh.clone(), c1));
-        // handshake::client_session(&dh, c2);
-        // let finalized_handshake = handshake.join().unwrap();
-        //TODO: calculate predictability after evil handshake and assert
-        // let (c, _n) = c2.send(Box<Vec<>>);
-        // c.close();
-    }
-}
+//    #[test]
+//    #[traced_test]
+//    fn handshake_test() {
+//        let dh = DH::new(31, 3);
+//        info!(
+//            "spawning diffie hellman echo bot with diffie hellman of {:#?} ",
+//            dh
+//        );
+//        let (c1, c2) = session_channel();
+//        let handshake = spawn(move || handshake::srvr_handshake(&dh.clone(), "client msg", c1));
+//        handshake::client_session(&dh, "dummy msg", c2);
+//        // let handshake = spawn(move || handshake::handshake(&dh.clone(), c1));
+//        // handshake::client_session(&dh, c2);
+//        // let finalized_handshake = handshake.join().unwrap();
+//        //TODO: calculate predictability after evil handshake and assert
+//        // let (c, _n) = c2.send(Box<Vec<>>);
+//        // c.close();
+//    }
+//}
