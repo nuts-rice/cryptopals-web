@@ -5,8 +5,7 @@ use crate::FunkyFiniteFields::{eq_on_secret, eq_on_subtle};
 use cryptopals_web::diffie_hellman::*;
 use cryptopals_web::ff::*;
 use cryptopals_web::srp::srp_handshake::*;
-
-
+use cryptopals_web::streams_randomness::Encryptor;
 use num_bigint::BigUint;
 use std::iter::repeat;
 use std::time::*;
@@ -52,6 +51,19 @@ async fn ct_timing_demo(selected: bool) -> Result<String, ()> {
     }
     let elapsed = now.elapsed();
     Ok(format!("{:?}", elapsed.as_millis()))
+}
+
+#[tauri::command]
+async fn aes_ctr_demo() -> Result<(), String> {
+    let encrypted = Encryptor::new();
+    let ciphertxt = encrypted.get_ciphertext();
+    let keystream = encrypted.edit(0, &vec![0; ciphertxt.len()]).unwrap();
+    let xored: Vec<u8> = ciphertxt
+        .iter()
+        .zip(keystream.iter())
+        .map(|(x, y)| *x ^ *y)
+        .collect();
+    encrypted.aes_oracle(&xored)
 }
 
 //happy choice for conditionally assigning using subtle::choice and subtle::constanttimeeq
