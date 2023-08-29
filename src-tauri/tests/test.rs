@@ -1,13 +1,13 @@
 use all_asserts::*;
-use firestorm::{profile_fn, profile_method, profile_section};
+use cryptopals_web::{handshake, srp_handshake, Encryptor, DH};
+
 use num_bigint::BigUint;
-use num_bigint::RandBigInt;
-use session_types::*;
+
+
+
+
 use tracing::*;
 use tracing_test::traced_test;
-
-use cryptopals_web::{diffie_hellman, handshake, srp_handshake, DH};
-use std::thread::*;
 
 #[cfg(tests)]
 use super::*;
@@ -41,13 +41,12 @@ mod tests {
             b: vec![0u8; 16],
         };
 
-        let pub_b = srp_handshake::server_session(hash.clone(), &mut pub_k, &mut srv_secret);
+        let _pub_b = srp_handshake::server_session(hash.clone(), &mut pub_k, &mut srv_secret);
         let client_session = srp_handshake::client_session(&Scrt, &mut pub_k).unwrap();
         debug!("srvr secret is : {:#?}", srv_secret);
         debug!("pub keys are : {:#?}", pub_k);
         //TODO: fix verifier for this
-        let server_v =
-            srp_handshake::server_verify(pub_k, &srv_secret.priv_b, hash, &Scrt, client_session);
+        srp_handshake::server_verify(pub_k, &srv_secret.priv_b, hash, &Scrt, client_session);
         if firestorm::enabled() {
             firestorm::bench("./flames/", hash_test).unwrap();
         }
@@ -67,26 +66,44 @@ mod tests {
     fn dh_utils_test() {
         let _dh = DH::new(31, 3);
         let shared_scret = _dh.diffie_hellman().unwrap();
-        let encrypted = handshake::secret_to_key(shared_scret.a.to_string().as_bytes());
+        let _encrypted = handshake::secret_to_key(shared_scret.a.to_string().as_bytes());
         // debug!("dh is {:#?}, encrypted to {:#?}", _dh, encrypted);
     }
 
+    //#[test]
+    //#[traced_test]
+    //fn handshake_test() {
+    //    let dh = DH::new(31, 3);
+    //    info!(
+    //        "spawning diffie hellman echo bot with diffie hellman of {:#?} ",
+    //        dh
+    //    );
+    //    let (c1, c2) = session_channel();
+    //    let handshake = spawn(move || handshake::srvr_handshake(&dh.clone(), "client msg", c1));
+    //    handshake::client_session(&dh, "dummy msg", c2);
+    //    // let handshake = spawn(move || handshake::handshake(&dh.clone(), c1));
+    //    // handshake::client_session(&dh, c2);
+    //    // let finalized_handshake = handshake.join().unwrap();
+    //    //TODO: calculate predictability after evil handshake and assert
+    //    // let (c, _n) = c2.send(Box<Vec<>>);
+    //    // c.close();
+    //}
+
     #[test]
     #[traced_test]
-    fn handshake_test() {
-        let dh = DH::new(31, 3);
-        info!(
-            "spawning diffie hellman echo bot with diffie hellman of {:#?} ",
-            dh
+    fn aes_ctr_test() {
+        let encrypted = Encryptor::new();
+        let ciphertxt = encrypted.get_ciphertext();
+        let keystream = encrypted.edit(0, &vec![0; ciphertxt.len()]).unwrap();
+        let xored: Vec<u8> = ciphertxt
+            .iter()
+            .zip(keystream.iter())
+            .map(|(x, y)| *x ^ *y)
+            .collect();
+        debug!(
+            "ciphertxt: {:?}, \n xored keystream: {:?}",
+            ciphertxt, xored
         );
-        let (c1, c2) = session_channel();
-        let handshake = spawn(move || handshake::srvr_handshake(&dh.clone(), "client msg", c1));
-        handshake::client_session(&dh, "dummy msg", c2);
-        // let handshake = spawn(move || handshake::handshake(&dh.clone(), c1));
-        // handshake::client_session(&dh, c2);
-        // let finalized_handshake = handshake.join().unwrap();
-        //TODO: calculate predictability after evil handshake and assert
-        // let (c, _n) = c2.send(Box<Vec<>>);
-        // c.close();
+        assert_eq!(encrypted.aes_oracle(&xored), Ok(()))
     }
 }

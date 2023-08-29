@@ -12,6 +12,7 @@ pub struct Encryptor {
     cleartext: Vec<u8>,
     key: Vec<u8>,
     ciphertext: Vec<u8>,
+    nonce: Vec<u8>,
 }
 
 impl Encryptor {
@@ -20,23 +21,37 @@ impl Encryptor {
         let mut rng = OsRng::default();
         let mut key = [0u8; 16];
         rng.fill(&mut key[..]);
-        let mut nonce = [0u8; 16];
-        rng.fill(&mut nonce[..]);
-        let mut cipher = aes::ctr(KeySize::KeySize128, &key, &nonce);
+        let mut _nonce = [0u8; 16];
+        rng.fill(&mut _nonce[..]);
+        let mut cipher = aes::ctr(KeySize::KeySize128, &key, &_nonce);
         let mut output_buffer: Vec<u8> = repeat(0u8).take(cleartxt.len()).collect();
         let ciphertxt = cipher.process(cleartxt.as_slice(), &mut output_buffer[..]);
         Encryptor {
             cleartext: cleartxt,
             key: key.to_vec(),
             ciphertext: output_buffer,
+            nonce: _nonce.to_vec(),
         }
     }
 
     pub fn get_ciphertext(&self) -> &[u8] {
         &self.ciphertext
     }
+    pub fn aes_oracle(&self, canidate_cleartext: &[u8]) -> Result<(), String> {
+        if (&self.cleartext[..]).eq(canidate_cleartext) {
+            Ok(())
+        } else {
+            Err(String::from("Not the same"))
+        }
+    }
 
     pub fn edit(&self, offset: usize, newtext: &[u8]) -> Result<Vec<u8>, ()> {
-        unimplemented!()
+        let mut cleartxt = self.cleartext.clone();
+        let end = offset + newtext.len();
+        let mut output_buffer: Vec<u8> = repeat(0u8).take(end).collect();
+        cleartxt[offset..end].copy_from_slice(newtext);
+        let mut cipher = aes::ctr(KeySize::KeySize128, &self.key, &self.nonce);
+        let ciphertxt = cipher.process(cleartxt.as_slice(), &mut output_buffer[..]);
+        Ok(output_buffer)
     }
 }

@@ -5,7 +5,7 @@ use crate::FunkyFiniteFields::{eq_on_secret, eq_on_subtle};
 use cryptopals_web::diffie_hellman::*;
 use cryptopals_web::ff::*;
 use cryptopals_web::srp::srp_handshake::*;
-pub(crate) use firestorm::profile_fn;
+
 
 use num_bigint::BigUint;
 use std::iter::repeat;
