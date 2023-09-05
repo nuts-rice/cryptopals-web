@@ -41,8 +41,8 @@ impl Encryptor {
     }
     pub fn aes_oracle(&self, canidate_cleartext: &[u8]) -> Result<()> {
         match (&self.cleartext[..]).eq(canidate_cleartext) {
-            true => Ok(()),
-            false => Err(anyhow!("Not the same")),
+            true => Ok(()),     
+            false => Err(anyhow!("Not the same"))
         }
     }
 
@@ -75,6 +75,8 @@ struct Common {
 pub struct Oracle26 {
     common: Common,
 }
+
+
 
 impl Oracle for Common {
     fn encrypt(&self, u: &[u8]) -> Result<Vec<u8>> {
@@ -116,7 +118,7 @@ impl Oracle26 {
         // rng.fill(&mut _nonce[..]);
         // let encrypted =|plaintxt: &[u8]| {
         //     if plaintxt.contains(&b';') || plaintxt.contains(&b'=') {
-
+                
         //     }
         // }
     }

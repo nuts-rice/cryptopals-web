@@ -8,6 +8,6 @@
 </script> 
 
 <div>
-  <button type = "submit"> AES CTR edit attack </button>
+  <button on:click={AES_ctr_demo}> Edit AES CTR ciphertext </button>
   <p> {result} </p>
 </div>

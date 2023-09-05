@@ -40,6 +40,7 @@ xor = "1.4.5"
 base64 = "0.21.3"
 rustc-serialize = "0.3.24"
 rust-crypto = "0.2.36"
+num = { version = "0.4.1", features = ["num-bigint"] }
 
 [profile.bench]
 debug = true

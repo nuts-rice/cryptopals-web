@@ -54,7 +54,7 @@ async fn ct_timing_demo(selected: bool) -> Result<String, ()> {
 }
 
 #[tauri::command]
-async fn aes_ctr_demo() -> Result<(), String> {
+async fn aes_ctr_demo() -> Result<String, ()> {
     let encrypted = Encryptor::new();
     let ciphertxt = encrypted.get_ciphertext();
     let keystream = encrypted.edit(0, &vec![0; ciphertxt.len()]).unwrap();
@@ -63,7 +63,13 @@ async fn aes_ctr_demo() -> Result<(), String> {
         .zip(keystream.iter())
         .map(|(x, y)| *x ^ *y)
         .collect();
-    encrypted.aes_oracle(&xored)
+    let result = encrypted.aes_oracle(&xored);
+    match result {
+        Ok(_) => Ok(format!(
+            "Using exposed AES edit function and xoring result matches cleartext"
+        )),
+        Err(_) => Err(eprintln!("Uh oh, something wrong with AES ctr demo")),
+    }
 }
 
 //happy choice for conditionally assigning using subtle::choice and subtle::constanttimeeq
@@ -109,6 +115,7 @@ macro_rules! evil {
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
+            aes_ctr_demo,
             generate_dh,
             dh_mitm_attack_demo,
             srp_repl_demo,
